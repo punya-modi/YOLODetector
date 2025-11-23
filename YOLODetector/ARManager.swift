@@ -43,7 +43,7 @@ class ARManager: NSObject, ObservableObject, ARSessionDelegate {
     private let visionInterval: TimeInterval = 0.1 // Cap YOLO at 10 FPS
     
     private var lastRadarTime: TimeInterval = 0
-    private let radarInterval: TimeInterval = 0.6 // Cap Radar at ~15 FPS
+    private let radarInterval: TimeInterval = 0.15 // Cap Radar at ~6.7 FPS (increased for better velocity tracking)
     
     // Vision
     private var visionModel: VNCoreMLModel

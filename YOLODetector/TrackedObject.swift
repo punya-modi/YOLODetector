@@ -47,29 +47,30 @@ class TrackedObject {
     }
     
     private func calculateVelocity() {
-        guard distanceHistory.count >= 3 else {
+        guard distanceHistory.count >= 2 else {
             velocity = 0.0
             return
         }
         
-        // Compare newest reading vs oldest reading in buffer
+        // Compare last 2 readings for immediate responsiveness
+        // This works better with higher frequency sampling (0.15s interval)
         let newest = distanceHistory.last!
-        let oldest = distanceHistory.first!
+        let previous = distanceHistory[distanceHistory.count - 2]
         
-        let timeDiff = Float(newest.0 - oldest.0)
-        let distChange = newest.1 - oldest.1 // <--- This was missing
+        let timeDiff = Float(newest.0 - previous.0)
+        let distChange = newest.1 - previous.1
         
         if timeDiff > 0 {
             // Velocity = Distance Change / Time Change
             let rawVelocity = distChange / timeDiff
             
-            // Apply smoothing: 70% old value + 30% new value
-            velocity = (velocity * 0.7) + (rawVelocity * 0.3)
+            // Apply smoothing: 60% old value + 40% new value (more responsive)
+            velocity = (velocity * 0.6) + (rawVelocity * 0.4)
         }
     }
     
     var isApproaching: Bool {
-        // If moving closer faster than 0.3 m/s
-        return velocity < -0.3
+        // If moving closer faster than 0.1 m/s (more sensitive threshold)
+        return velocity < -0.1
     }
 }
