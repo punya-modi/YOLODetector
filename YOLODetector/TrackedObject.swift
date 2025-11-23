@@ -57,10 +57,15 @@ class TrackedObject {
         let oldest = distanceHistory.first!
         
         let timeDiff = Float(newest.0 - oldest.0)
-        let distChange = newest.1 - oldest.1 // <--- This was missing
+        // When approaching, distance decreases (newest < oldest)
+        // When moving away, distance increases (newest > oldest)
+        // FIXED: Flip the sign - oldest - newest so that approaching gives positive velocity
+        let distChange = oldest.1 - newest.1
         
         if timeDiff > 0 {
             // Velocity = Distance Change / Time Change
+            // After sign flip: Positive velocity = approaching (distance decreasing)
+            // Negative velocity = moving away (distance increasing)
             let rawVelocity = distChange / timeDiff
             
             // Apply smoothing: 70% old value + 30% new value
@@ -70,6 +75,7 @@ class TrackedObject {
     
     var isApproaching: Bool {
         // If moving closer faster than 0.3 m/s
-        return velocity < -0.3
+        // FIXED: Now positive velocity means approaching (after sign flip)
+        return velocity > 0.3
     }
 }
