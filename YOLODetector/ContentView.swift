@@ -15,37 +15,7 @@ struct ContentView: View {
                 imageSize: UIScreen.main.bounds.size
             )
             
-            // REMOVED CROSSHAIR - It implies precision, but now we are doing area scanning.
-            
-            // 3. MAIN ALERT (Nearest Danger)
-            if !arManager.obstacleLabel.isEmpty {
-                VStack {
-                    Spacer()
-                    HStack {
-                        Spacer()
-                        VStack(spacing: 5) {
-                            // Bigger, clearer text for visual impairment
-                            Text(arManager.obstacleLabel.uppercased())
-                                .font(.system(size: 32, weight: .heavy))
-                                .foregroundColor(.black)
-                                .multilineTextAlignment(.center)
-                            
-                            Text(arManager.obstacleDistance)
-                                .font(.system(size: 48, weight: .bold))
-                                .foregroundColor(.black)
-                        }
-                        .padding(24)
-                        .background(Color(arManager.obstacleColor))
-                        .cornerRadius(20)
-                        .shadow(radius: 10)
-                        .padding(.horizontal, 20) // Ensure it doesn't touch screen edges
-                        Spacer()
-                    }
-                    .padding(.bottom, 60)
-                }
-            }
-            
-            // 4. FPS
+            // 3. FPS
             VStack {
                 HStack {
                     Text("FPS: \(String(format: "%.0f", arManager.fps))")

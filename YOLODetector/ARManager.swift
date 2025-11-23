@@ -22,17 +22,11 @@ struct RawDetection {
 
 class ARManager: NSObject, ObservableObject, ARSessionDelegate {
     @Published var predictions: [Prediction] = []
-    
-    // Radar / Safety Cone Data
-    @Published var obstacleLabel: String = ""
-    @Published var obstacleDistance: String = ""
-    @Published var obstacleColor: UIColor = .clear
     @Published var fps: Double = 0
     
     var arView: ARView?
     
     private var trackedObjects: [TrackedObject] = []
-    private var closestObstacleTracker: TrackedObject?
     
     // SETTINGS
     private let maxDistance: Float = 5.0
@@ -41,9 +35,6 @@ class ARManager: NSObject, ObservableObject, ARSessionDelegate {
     // OPTIMIZATION: Throttling
     private var lastVisionTime: TimeInterval = 0
     private let visionInterval: TimeInterval = 0.1 // Cap YOLO at 10 FPS
-    
-    private var lastRadarTime: TimeInterval = 0
-    private let radarInterval: TimeInterval = 0.6 // Cap Radar at ~15 FPS
     
     // Vision
     private var visionModel: VNCoreMLModel
@@ -61,8 +52,6 @@ class ARManager: NSObject, ObservableObject, ARSessionDelegate {
         self.visionModel = visionModel
         super.init()
         setupVision()
-        
-        self.closestObstacleTracker = TrackedObject(label: "Scanning...", rect: .zero, distance: 0.0)
     }
     
     func setupVision() {
@@ -77,13 +66,7 @@ class ARManager: NSObject, ObservableObject, ARSessionDelegate {
     func session(_ session: ARSession, didUpdate frame: ARFrame) {
         let currentTime = CACurrentMediaTime()
         
-        // 1. Run Radar (Throttled)
-        if currentTime - lastRadarTime > radarInterval {
-            scanForClosestObstacle()
-            lastRadarTime = currentTime
-        }
-        
-        // 2. Run Vision (Throttled)
+        // Run Vision (Throttled)
         if !isProcessing && (currentTime - lastVisionTime > visionInterval) {
             isProcessing = true
             lastVisionTime = currentTime
@@ -95,89 +78,6 @@ class ARManager: NSObject, ObservableObject, ARSessionDelegate {
             DispatchQueue.global(qos: .userInteractive).async {
                 try? imageRequestHandler.perform(self.requests)
             }
-        }
-    }
-    
-    // MARK: - SAFETY CONE RADAR (Optimized)
-    private func scanForClosestObstacle() {
-        guard let arView = self.arView else { return }
-        
-        let screenWidth = arView.bounds.width
-        let screenHeight = arView.bounds.height
-        
-        // OPTIMIZATION: Reduced from 5x5 (25 rays) to 3x3 (9 rays)
-        // This drastically reduces CPU load while still covering the main area
-        let rows = 3
-        let cols = 3
-        let minX: CGFloat = 0.2
-        let maxX: CGFloat = 0.8
-        let minY: CGFloat = 0.25
-        let maxY: CGFloat = 0.75
-        
-        var closestDist: Float = 100.0
-        var closestPoint: CGPoint? = nil
-        
-        for r in 0..<rows {
-            for c in 0..<cols {
-                let x = minX + (CGFloat(c) / CGFloat(cols-1)) * (maxX - minX)
-                let y = minY + (CGFloat(r) / CGFloat(rows-1)) * (maxY - minY)
-                
-                let point = CGPoint(x: x * screenWidth, y: y * screenHeight)
-                
-                // .estimatedPlane is faster than .mesh
-                let query = arView.makeRaycastQuery(from: point, allowing: .estimatedPlane, alignment: .any)
-                
-                if let query = query {
-                    let results = arView.session.raycast(query)
-                    if let result = results.first {
-                        let dist = length(result.worldTransform.columns.3)
-                        if dist > 0.2 && dist < closestDist {
-                            closestDist = dist
-                            closestPoint = CGPoint(x: x, y: 1-y)
-                        }
-                    }
-                }
-            }
-        }
-        
-        let validDist = (closestDist < maxDistance) ? closestDist : 0.0
-        closestObstacleTracker?.update(rect: .zero, distance: validDist)
-        
-        DispatchQueue.main.async {
-            self.updateObstacleUI(closestPoint: closestPoint)
-        }
-    }
-    
-    private func updateObstacleUI(closestPoint: CGPoint?) {
-        guard let tracker = closestObstacleTracker else { return }
-        let dist = tracker.distanceHistory.last?.1 ?? 0.0
-        
-        if dist == 0.0 || dist > maxDistance {
-            self.obstacleLabel = ""
-            self.obstacleDistance = ""
-            self.obstacleColor = .clear
-            return
-        }
-        
-        var matchedLabel = "Obstacle"
-        
-        if let point = closestPoint {
-            for obj in self.trackedObjects {
-                if obj.rect.contains(point) {
-                    matchedLabel = obj.label
-                    break
-                }
-            }
-        }
-        
-        self.obstacleLabel = matchedLabel
-        self.obstacleDistance = String(format: "%.1fm", dist)
-        
-        if tracker.isApproaching {
-            self.obstacleLabel = "\(matchedLabel) (APPROACHING)"
-            self.obstacleColor = .red
-        } else {
-            self.obstacleColor = .yellow
         }
     }
     
