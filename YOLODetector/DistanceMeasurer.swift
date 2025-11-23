@@ -9,8 +9,13 @@ import Foundation
 import ARKit
 import RealityKit
 
+struct DistanceMeasurement {
+    let distance: Float
+    let isValid: Bool
+}
+
 class DistanceMeasurer {
-    func measureDistance(boundingBox: CGRect, in arView: ARView) -> Float {
+    func measureDistance(boundingBox: CGRect, in arView: ARView) -> DistanceMeasurement {
         let screenWidth = arView.bounds.width
         let screenHeight = arView.bounds.height
         
@@ -37,19 +42,48 @@ class DistanceMeasurer {
                 y: normalizedPoint.y * screenHeight
             )
             
-            let query = arView.makeRaycastQuery(from: screenPoint, allowing: .estimatedPlane, alignment: .any)
+            // Try multiple raycast strategies for better reliability
+            var raycastSucceeded = false
             
-            if let query = query {
+            // First try with estimated plane (works when ARKit has detected planes)
+            if let query = arView.makeRaycastQuery(from: screenPoint, allowing: .estimatedPlane, alignment: .any) {
                 let results = arView.session.raycast(query)
                 if let result = results.first {
                     let dist = length(result.worldTransform.columns.3)
-                    if dist > DetectionSettings.minDistance {
+                    if dist > DetectionSettings.minDistance && dist < DetectionSettings.maxDistance * 2 {
                         validDistances.append(dist)
+                        raycastSucceeded = true
+                    }
+                }
+            }
+            
+            // Fallback: try with existing plane geometry if available
+            if !raycastSucceeded {
+                if let query = arView.makeRaycastQuery(from: screenPoint, allowing: .existingPlaneGeometry, alignment: .any) {
+                    let results = arView.session.raycast(query)
+                    if let result = results.first {
+                        let dist = length(result.worldTransform.columns.3)
+                        if dist > DetectionSettings.minDistance && dist < DetectionSettings.maxDistance * 2 {
+                            validDistances.append(dist)
+                            raycastSucceeded = true
+                        }
                     }
                 }
             }
         }
         
-        return validDistances.min() ?? (DetectionSettings.maxDistance + 1.0)
+        if let minDistance = validDistances.min() {
+            return DistanceMeasurement(distance: minDistance, isValid: true)
+        } else {
+            // When raycasting fails (e.g., in new areas without plane detection),
+            // estimate distance based on bounding box size as fallback
+            // Larger boxes are typically closer, smaller boxes are farther
+            let boxArea = Float(w * h)
+            // Rough estimation: larger boxes = closer objects
+            let estimatedDistance = max(DetectionSettings.minDistance, 
+                                       min(DetectionSettings.maxDistance, 
+                                           2.0 / (boxArea + 0.1)))
+            return DistanceMeasurement(distance: estimatedDistance, isValid: false)
+        }
     }
 }

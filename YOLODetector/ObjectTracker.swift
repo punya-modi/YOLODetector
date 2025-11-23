@@ -42,14 +42,14 @@ class ObjectTracker {
             
             if let index = bestMatchIndex {
                 let match = unmatchedDetections[index]
-                tracker.update(rect: match.rect, distance: match.distance)
+                tracker.update(rect: match.rect, distance: match.distance, hasValidDistance: match.hasValidDistance)
                 unmatchedDetections.remove(at: index)
             }
         }
         
         // Create new trackers for unmatched detections
         for detection in unmatchedDetections {
-            let newTracker = TrackedObject(label: detection.label, rect: detection.rect, distance: detection.distance)
+            let newTracker = TrackedObject(label: detection.label, rect: detection.rect, distance: detection.distance, hasValidDistance: detection.hasValidDistance)
             trackedObjects.append(newTracker)
         }
         

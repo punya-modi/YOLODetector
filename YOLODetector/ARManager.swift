@@ -18,6 +18,7 @@ struct RawDetection {
     let confidence: Float
     let rect: CGRect
     let distance: Float
+    let hasValidDistance: Bool
 }
 
 class ARManager: NSObject, ObservableObject, ARSessionDelegate {
@@ -102,7 +103,7 @@ class ARManager: NSObject, ObservableObject, ARSessionDelegate {
             // Measure distances for each detection
             var detectionsWithDistance: [RawDetection] = []
             for detection in detections {
-                let distance = self.distanceMeasurer.measureDistance(
+                let measurement = self.distanceMeasurer.measureDistance(
                     boundingBox: CGRect(
                         x: detection.rect.origin.x,
                         y: 1 - detection.rect.origin.y - detection.rect.height,
@@ -116,7 +117,8 @@ class ARManager: NSObject, ObservableObject, ARSessionDelegate {
                     label: detection.label,
                     confidence: detection.confidence,
                     rect: detection.rect,
-                    distance: distance
+                    distance: measurement.distance,
+                    hasValidDistance: measurement.isValid
                 ))
             }
             
@@ -211,7 +213,17 @@ class ARManager: NSObject, ObservableObject, ARSessionDelegate {
         var finalPredictions: [Prediction] = []
         
         for tracker in objectTracker.getTrackedObjects() {
-            if (tracker.distanceHistory.last?.1 ?? 100) < DetectionSettings.maxDistance {
+            let lastDistance = tracker.distanceHistory.last?.1 ?? 100
+            let hasValidDistance = tracker.hasValidDistance
+            
+            // Show objects if:
+            // 1. They have valid distance AND it's within range, OR
+            // 2. They have invalid/unknown distance (still detected, just distance measurement failed)
+            // This ensures objects are shown even when moving to new areas where ARKit hasn't detected planes yet
+            let shouldShow = (hasValidDistance && lastDistance < DetectionSettings.maxDistance) || 
+                            (!hasValidDistance && lastDistance < DetectionSettings.maxDistance * 2)
+            
+            if shouldShow {
                 let prediction = Prediction(
                     label: tracker.label,
                     classIndex: 0,

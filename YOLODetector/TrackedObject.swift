@@ -17,24 +17,29 @@ class TrackedObject {
     // History of (Time, Distance)
     var distanceHistory: [(TimeInterval, Float)] = []
     
+    // Track if the last distance measurement was valid
+    var hasValidDistance: Bool = false
+    
     // Velocity in Meters/Second
     var velocity: Float = 0.0
     
     // Smoothing limit
     private let historyLimit = DetectionSettings.trackingHistoryLimit
     
-    init(label: String, rect: CGRect, distance: Float) {
+    init(label: String, rect: CGRect, distance: Float, hasValidDistance: Bool = false) {
         self.id = UUID()
         self.label = label
         self.rect = rect
         self.lastSeen = Date().timeIntervalSince1970
-        update(rect: rect, distance: distance)
+        self.hasValidDistance = hasValidDistance
+        update(rect: rect, distance: distance, hasValidDistance: hasValidDistance)
     }
     
-    func update(rect: CGRect, distance: Float) {
+    func update(rect: CGRect, distance: Float, hasValidDistance: Bool = false) {
         let now = Date().timeIntervalSince1970
         self.lastSeen = now
         self.rect = rect
+        self.hasValidDistance = hasValidDistance
         
         // 1. Add to history
         distanceHistory.append((now, distance))
@@ -42,8 +47,13 @@ class TrackedObject {
             distanceHistory.removeFirst()
         }
         
-        // 2. Calculate Velocity
-        calculateVelocity()
+        // 2. Calculate Velocity (only if we have valid distances)
+        if hasValidDistance {
+            calculateVelocity()
+        } else {
+            // Reset velocity if distance is invalid
+            velocity = 0.0
+        }
     }
     
     private func calculateVelocity() {
@@ -71,6 +81,8 @@ class TrackedObject {
     }
     
     var isApproaching: Bool {
+        // Only meaningful if we have valid distance measurements
+        guard hasValidDistance else { return false }
         // If moving closer faster than threshold
         return velocity < DetectionSettings.approachingVelocityThreshold
     }
