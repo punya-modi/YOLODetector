@@ -92,7 +92,8 @@ class VisionProcessor {
                 label: label.identifier,
                 confidence: label.confidence,
                 rect: rect,
-                distance: 0.0 // Will be calculated separately
+                distance: 0.0, // Will be calculated separately
+                hasValidDistance: false // Will be determined when distance is measured
             ))
         }
         
