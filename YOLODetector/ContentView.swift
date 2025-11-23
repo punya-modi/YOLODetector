@@ -45,20 +45,68 @@ struct ContentView: View {
                 }
             }
             
-            // 4. FPS
+            // 4. Performance Metrics
             VStack {
                 HStack {
-                    Text("FPS: \(String(format: "%.0f", arManager.fps))")
-                        .font(.system(size: 14, weight: .bold, design: .monospaced))
-                        .foregroundColor(.green)
-                        .padding(4)
-                        .background(Color.black.opacity(0.6))
-                        .cornerRadius(4)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("FPS: \(String(format: "%.0f", arManager.fps))")
+                            .font(.system(size: 12, weight: .bold, design: .monospaced))
+                            .foregroundColor(.green)
+                        
+                        Text("CPU: \(String(format: "%.1f", arManager.cpuUsage))%")
+                            .font(.system(size: 12, weight: .bold, design: .monospaced))
+                            .foregroundColor(arManager.cpuUsage > 80 ? .red : .yellow)
+                        
+                        Text("RAM: \(String(format: "%.1f", arManager.memoryUsage))MB")
+                            .font(.system(size: 12, weight: .bold, design: .monospaced))
+                            .foregroundColor(arManager.memoryUsage > 500 ? .red : .blue)
+                    }
+                    .padding(8)
+                    .background(Color.black.opacity(0.6))
+                    .cornerRadius(8)
                     Spacer()
                 }
                 .padding(.top, 50)
                 .padding(.leading, 20)
                 Spacer()
+            }
+            
+            // 5. Error Display
+            if arManager.hasError, let errorMessage = arManager.errorMessage {
+                VStack {
+                    VStack(spacing: 12) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.system(size: 40))
+                            .foregroundColor(.red)
+                        
+                        Text("Error")
+                            .font(.system(size: 20, weight: .bold))
+                            .foregroundColor(.white)
+                        
+                        Text(errorMessage)
+                            .font(.system(size: 14))
+                            .foregroundColor(.white)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal)
+                        
+                        Button("Dismiss") {
+                            arManager.clearError()
+                        }
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 8)
+                        .background(Color.white)
+                        .foregroundColor(.black)
+                        .cornerRadius(8)
+                    }
+                    .padding(20)
+                    .background(Color.red.opacity(0.9))
+                    .cornerRadius(16)
+                    .shadow(radius: 10)
+                    .padding(.horizontal, 40)
+                    
+                    Spacer()
+                }
+                .padding(.top, 100)
             }
         }
     }

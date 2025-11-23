@@ -21,7 +21,7 @@ class TrackedObject {
     var velocity: Float = 0.0
     
     // Smoothing limit
-    private let historyLimit = 10
+    private let historyLimit = DetectionSettings.trackingHistoryLimit
     
     init(label: String, rect: CGRect, distance: Float) {
         self.id = UUID()
@@ -64,13 +64,14 @@ class TrackedObject {
             // Velocity = Distance Change / Time Change
             let rawVelocity = distChange / timeDiff
             
-            // Apply smoothing: 60% old value + 40% new value (more responsive)
-            velocity = (velocity * 0.6) + (rawVelocity * 0.4)
+            // Apply smoothing using settings
+            velocity = (velocity * DetectionSettings.velocitySmoothingOld) + 
+                      (rawVelocity * DetectionSettings.velocitySmoothingNew)
         }
     }
     
     var isApproaching: Bool {
-        // If moving closer faster than 0.1 m/s (more sensitive threshold)
-        return velocity < -0.1
+        // If moving closer faster than threshold
+        return velocity < DetectionSettings.approachingVelocityThreshold
     }
 }
