@@ -21,10 +21,11 @@ struct Prediction {
     // Helper to format semantics for the blind
     var semanticLabel: String {
         if isApproaching {
-            // Negative velocity means getting closer
+            // Positive velocity means getting closer (after sign flip fix)
             return String(format: "APPROACHING! %.1f m/s", abs(velocity))
-        } else if velocity > 0.3 {
-            return String(format: "Moving Away %.1f m/s", velocity)
+        } else if velocity < -0.3 {
+            // Negative velocity means moving away (after sign flip fix)
+            return String(format: "Moving Away %.1f m/s", abs(velocity))
         } else {
             return "Stationary"
         }
@@ -33,7 +34,7 @@ struct Prediction {
     // Helper for UI Color
     var statusColor: Color {
         if isApproaching { return .red }
-        if velocity > 0.3 { return .green }
+        if velocity < -0.3 { return .green }
         return .yellow
     }
 }
